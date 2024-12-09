@@ -6,8 +6,7 @@ import os
 
 def test_send_email():
     email_sender = "vivekbeginning@gmail.com"
-    email_password = "rihz qcsn gnwb wckx"
-#    email_password = os.getenv("EMAIL_PASSWORD")
+    email_password = # When testing copy password from config file
     email_recipient = "vivekbeginning@gmail.com"  # recipient email
     invoice_file_path = "/Users/v/PycharmProjects/invoice_generator/invoice_16.pdf"  # Real file in location for testing
 
