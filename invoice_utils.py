@@ -3,7 +3,7 @@ import re
 import json
 import tkinter as tk
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from datetime import datetime
 from tkinter import messagebox
@@ -12,11 +12,18 @@ from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import Image
-from reportlab.lib.colors import blue  # Import the color blue
+from reportlab.lib.colors import blue  # Import blue color
 from email_sender import send_invoice
 import sys
 
 
+# import qrcode
+
+
+# from reportlab.platypus import Image as RLImage
+
+
+# Checking validity of email
 def is_valid_email(email):
     pattern = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
     return re.match(pattern, email)
@@ -28,25 +35,39 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 
+def get_invoice_number_file_path():
+    if getattr(sys, 'frozen', False):
+        # If the application is running as a bundled executable
+        base_path = sys._MEIPASS  # Path to the temporary folder
+    else:
+        # If running as a script
+        base_path = os.path.dirname(__file__)
+
+    return os.path.join(base_path, 'invoice_number.json')
+
+
 # Function to initialize the invoice number JSON file
 def initialize_invoice_number():
-    if not os.path.exists("invoice_number.json"):
+    invoice_number_file_path = get_invoice_number_file_path()
+    if not os.path.exists(invoice_number_file_path):
         # Create the file and set the initial invoice number to 1
-        with open("invoice_number.json", "w") as f:
+        with open(invoice_number_file_path, "w") as f:
             json.dump({"invoice_number": 1}, f)  # Start at 1
 
 
 # Function to load the last invoice number
 def load_invoice_number():
-    if os.path.exists("invoice_number.json"):
-        with open("invoice_number.json", "r") as f:
+    invoice_number_file_path = get_invoice_number_file_path()
+    if os.path.exists(invoice_number_file_path):
+        with open(invoice_number_file_path, "r") as f:
             return json.load(f).get("invoice_number", 0)
     return 0
 
 
 # Function to save the last invoice number
 def save_invoice_number(invoice_number):
-    with open("invoice_number.json", "w") as f:
+    invoice_number_file_path = get_invoice_number_file_path()
+    with open(invoice_number_file_path, "w") as f:
         json.dump({"invoice_number": invoice_number}, f)
 
 
@@ -108,12 +129,12 @@ def add_footer(canvas, _doc):
     ]
 
     footer_part2 = [
-        ("Luha 16-79, Tallinn", 0.75 * inch),  # Address
+        ("Pärnu mnt 129b-14, Tallinn", 0.75 * inch),  # Address
         ("Tel: +372 53702287", 3.2 * inch),  # Phone number
     ]
 
     footer_part3 = [
-        ("Harjumaa, 10129", 0.75 * inch),  # County and postal code
+        ("Harjumaa, 11314", 0.75 * inch),  # County and postal code
         ("email: lapaduu@lapaduu.ee", 3.2 * inch)  # Email
     ]
 
@@ -163,9 +184,13 @@ def create_invoice(entry_date, entry_buyer_name, entry_client_address, entry_reg
     discounts = [discount.get() for discount in discount_entries]  # Extract discount
     totals = [total.get() for total in total_entries]
 
+    # Automatically fill with "Private" if the buyer_name is empty
+    if not buyer_name:
+        buyer_name = "ERAISIK"
+
     # Validate input fields
-    if not (date and buyer_name and client_address and reg_code and due_date):
-        messagebox.showerror("Error", "Buyer name, Client Address and Registration code are mandatory"
+    if not (date and due_date):
+        messagebox.showerror("Error", "Date and Due date are mandatory"
                                       " Required fields must be filled!")
         return
 
@@ -190,8 +215,8 @@ def create_invoice(entry_date, entry_buyer_name, entry_client_address, entry_reg
     elements = []
 
     # Load and add logo
-    logo_path = resource_path("logo.png")  # Use the resource_path function
-    logo = Image(logo_path)  # Now this will work correctly
+    logo_path = resource_path("logo.png")
+    logo = Image(logo_path)
     logo_width = 100  # Adjust the width as needed
     logo_height = 85  # Adjust the height as needed
     logo.drawHeight = logo_height
@@ -244,22 +269,45 @@ def create_invoice(entry_date, entry_buyer_name, entry_client_address, entry_reg
     elements.append(Paragraph("<br/><br/>", getSampleStyleSheet()['Normal']))
 
     # Add the services/products table
-    data = [['Teenus/kaup', 'Ühiku hind', 'Kogus/h', 'Discount (%)', 'Summa']]
-    for i in range(len(descriptions)):
-        if descriptions[i]:  # Check if the description is present
-            # Prepare values
-            qty_value = qtys[i] if qtys[i] else ' '  # Default to ' ' space, if empty
-            formatted_price = f"{float(prices[i]):.2f}" if prices[i] else ' '  # Default to ' ' space, if empty
-            formatted_total = f"{float(totals[i]):.2f}" if totals[i] else ' '  # Default to ' ' space, if empty
-            data.append([
-                Paragraph(descriptions[i], getSampleStyleSheet()['Normal']),  # Multi-line description
-                formatted_price,  # Use formatted price
-                qty_value,  # Show qty or default to ' '
-                discounts[i] if discounts[i] else ' ',  # Default to ' ' if empty
-                formatted_total  # Use formatted total
-            ])
+    # Check if there are any non-empty discounts
+    discounts_present = any(discount.strip() for discount in discounts)
 
-    table = Table(data, colWidths=[200, 100, 100, 100, 100])
+    # Add headers dynamically based on whether discounts are present
+    if discounts_present:
+        data = [['Teenus/kaup', 'Ühiku hind', 'Kogus/h', 'Discount (%)', 'Summa']]
+    else:
+        data = [['Teenus/kaup', 'Ühiku hind', 'Kogus/h', 'Summa']]
+
+    for i in range(len(descriptions)):
+        if descriptions[i]:
+            qty_value = qtys[i] if qtys[i] else ' '
+            formatted_price = f"{float(prices[i]):.2f}" if prices[i] else ' '
+            formatted_total = f"{float(totals[i]):.2f}" if totals[i] else ' '
+
+            # Add discount column data only if discounts are present
+            if discounts_present:
+                # Convert discount to percentage format
+                discount_value = f"{discounts[i]}%" if discounts[i] else ' '
+                data.append([
+                    Paragraph(descriptions[i], getSampleStyleSheet()['Normal']),
+                    formatted_price,
+                    qty_value,
+                    discount_value,
+                    formatted_total
+                ])
+            else:
+                data.append([
+                    Paragraph(descriptions[i], getSampleStyleSheet()['Normal']),
+                    formatted_price,
+                    qty_value,
+                    formatted_total
+                ])
+
+    if discounts_present:
+        table = Table(data, colWidths=[200, 100, 100, 100, 100])
+    else:
+        table = Table(data, colWidths=[200, 100, 100, 100])
+
     table.setStyle(TableStyle([
         ('GRID', (0, 0), (-1, -1), 1, 'black'),
         ('BACKGROUND', (0, 0), (-1, 0), 'grey'),
@@ -269,7 +317,9 @@ def create_invoice(entry_date, entry_buyer_name, entry_client_address, entry_reg
 
     ]))
     elements.append(table)
-    elements.append(Paragraph("<br/><br/>", getSampleStyleSheet()['Normal']))
+
+    # Add spacing after the table if needed (use Spacer instead of Paragraph)
+    elements.append(Spacer(1, 20))  # 20 units of vertical space
 
     right_align_style = ParagraphStyle(name='RightAlign', parent=getSampleStyleSheet()['Normal'], alignment=TA_RIGHT)
     total_amount = sum(float(entry) for entry in totals if entry)
@@ -277,11 +327,15 @@ def create_invoice(entry_date, entry_buyer_name, entry_client_address, entry_reg
     elements.append(
         Paragraph(f"<b>Arve summa kokku (EUR): {total_amount:.2f}</b>", right_align_style))  # Make total bold
 
+    # Generate QR code
+    # qr_code_path = generate_payment_qr_code(total_amount, invoice_number)
+
+    # Add QR code to the invoice
+    # qr_code_image = RLImage(qr_code_path, width=1.5 * inch, height=1.5 * inch)  # Adjust size as needed
+    # elements.append(qr_code_image)
+
     # Add some space
-    elements.append(Paragraph("<br/><br/>", getSampleStyleSheet()['Normal']))
-    elements.append(Paragraph("<br/><br/>", getSampleStyleSheet()['Normal']))
-    elements.append(Paragraph("<br/><br/>", getSampleStyleSheet()['Normal']))
-    elements.append(Paragraph("<br/><br/>", getSampleStyleSheet()['Normal']))
+    elements.append(Spacer(1, 100))  # 5 lines, each line represent 20 height
 
     left_align_style = ParagraphStyle(name='LeftAlign', parent=getSampleStyleSheet()['Normal'], alignment=TA_LEFT)
     elements.append(Paragraph("Palume arve tasumisel märkida selgitusse arve number.", left_align_style))
@@ -290,18 +344,21 @@ def create_invoice(entry_date, entry_buyer_name, entry_client_address, entry_reg
     doc.build(elements, onFirstPage=add_footer, onLaterPages=add_footer)
     # messagebox.showinfo("Success", f"Invoice created successfully: {pdf_filename}")
 
+    # If client email is provided, send the invoice via email
+    client_email = entry_client_email.get()
+
     # Call reset_form with all the necessary arguments
     reset_form(root, description_entries, qty_entries, price_entries, discount_entries,
                total_entries, entry_buyer_name, entry_client_address, entry_reg_code,
                add_description_entry, entry_client_email)
 
     # If client email is provided, send the invoice via email
-    client_email = entry_client_email.get()
-    print(client_email)
     if client_email:
         try:
             send_invoice(client_email, pdf_filename)
-            messagebox.showinfo("Success", f"Invoice created and sent successfully: {pdf_filename}")
+            messagebox.showinfo("Success", f"Invoice created and email is sent successfully "
+                                           f"to client ({client_email}): Invoice: {pdf_filename}")
+
         except Exception as e:
             print(f"Error sending email: {e}")  # Capture and print any errors
             messagebox.showerror("Error", "Failed to send email.")
@@ -313,7 +370,7 @@ def create_invoice(entry_date, entry_buyer_name, entry_client_address, entry_reg
 
 def calculate_total(qty_entry, price_entry, discount_entry, total_entry):
     try:
-        qty = float(qty_entry.get()) if qty_entry.get() else 0
+        qty = float(qty_entry.get()) if qty_entry.get() else 1
         price = float(price_entry.get()) if price_entry.get() else 0
         discount = float(discount_entry.get()) if discount_entry.get() else 0
 
@@ -337,15 +394,15 @@ def add_description_entry(root, description_entries, qty_entries, price_entries,
     desc_entry.grid(row=row, column=0)
     description_entries.append(desc_entry)
 
-    # Quantity entry
-    qty_entry = tk.Entry(root)
-    qty_entry.grid(row=row, column=1)
-    qty_entries.append(qty_entry)
-
     # Price entry
     price_entry = tk.Entry(root)
-    price_entry.grid(row=row, column=2)
+    price_entry.grid(row=row, column=1)
     price_entries.append(price_entry)
+
+    # Quantity entry
+    qty_entry = tk.Entry(root)
+    qty_entry.grid(row=row, column=2)
+    qty_entries.append(qty_entry)
 
     # Discount entry
     discount_entry = tk.Entry(root)

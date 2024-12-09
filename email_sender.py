@@ -3,11 +3,19 @@ import os
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
+import configparser
 
 
 def send_invoice(email_recipient, invoice_file_path):
-    email_sender = "vivekbeginning@gmail.com"  # Replace with your email address
-    email_password = "rihz qcsn gnwb wckx"  # App password
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+
+    email_sender = config['email']['sender']
+    email_password = config['email']['password']
+
+    if not email_password:
+        print("Error: EMAIL_PASSWORD is not set.")
+        return
 
     if not email_password:
         print("Error: EMAIL_PASSWORD is not set.")
@@ -19,7 +27,7 @@ def send_invoice(email_recipient, invoice_file_path):
     msg = MIMEMultipart()
     msg['From'] = email_sender
     msg['To'] = email_recipient
-    msg['Subject'] = f"Invoice_{invoice_file_path.split('_')[-1].split('.')[0]}"  # Extract the invoice number
+    msg['Subject'] = f"Your Invoice_{invoice_file_path.split('_')[-1].split('.')[0]}"  # Extract the invoice number
 
     # Email body
     body = "Dear Client,\n\nPlease find attached your invoice.\n\nThank you for your business!"
@@ -37,8 +45,8 @@ def send_invoice(email_recipient, invoice_file_path):
 
     # Send the email
     try:
-        with smtplib.SMTP('smtp.gmail.com', 587) as server:  # Use your SMTP server
-            server.starttls()  # Upgrade the connection to a secure encrypted SSL/TLS connection
+        with smtplib.SMTP('smtp.gmail.com', 587) as server:  # Use SMTP server
+            server.starttls()
             server.login(email_sender, email_password)
             server.send_message(msg)
             print("Email sent successfully!")

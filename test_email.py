@@ -8,8 +8,8 @@ def test_send_email():
     email_sender = "vivekbeginning@gmail.com"
     email_password = "rihz qcsn gnwb wckx"
 #    email_password = os.getenv("EMAIL_PASSWORD")
-    email_recipient = "vivekbeginning@gmail.com"  # Change this to a real recipient email
-    invoice_file_path = "/Users/v/PycharmProjects/invoice_generator/invoice_16.pdf"  # Change this to a real file path
+    email_recipient = "vivekbeginning@gmail.com"  # recipient email
+    invoice_file_path = "/Users/v/PycharmProjects/invoice_generator/invoice_16.pdf"  # Real file in location for testing
 
     msg = MIMEMultipart()
     msg['From'] = email_sender
@@ -33,7 +33,6 @@ def test_send_email():
 
     except Exception as e:
         print(f"Failed to send test email: {e}")
-
 
 
 # Call the function to test email sending

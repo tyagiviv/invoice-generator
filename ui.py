@@ -1,4 +1,5 @@
 import tkinter as tk
+# from tkinter import ttk  # Import ttk for Combobox
 from invoice_utils import create_invoice, add_description_entry
 from datetime import datetime, timedelta
 
@@ -51,17 +52,23 @@ def setup_ui(root):
 
     # Create labels for description, quantity, price, and total
     tk.Label(root, text="Teenus/kaup").grid(row=7, column=0)
-    tk.Label(root, text="Kogus/h").grid(row=7, column=1)
-    tk.Label(root, text="Ühiku hind").grid(row=7, column=2)
+    tk.Label(root, text="Ühiku hind").grid(row=7, column=1)
+    tk.Label(root, text="Kogus/h").grid(row=7, column=2)
     tk.Label(root, text="Discount (%)").grid(row=7, column=3)  # New discount label
     tk.Label(root, text="Summa").grid(row=7, column=4)
+
+    """   
+    # List of available descriptions
+    available_descriptions = ["LapaDuu komplekt", "Shipping Omniva", "Shipping Smartpost", "Shipping", "Other"]
+    """
 
     # Create initial entries for description fields
     description_entries = []
     qty_entries = []
     price_entries = []
-    discount_entries = []  # Initialize discount entries list
+    discount_entries = []
     total_entries = []
+
 
     # Call the function to add initial description fields
     add_description_entry(root, description_entries, qty_entries, price_entries, discount_entries, total_entries)

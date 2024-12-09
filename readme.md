@@ -27,7 +27,8 @@ Make windows file:
 
 - pyinstaller --onefile --add-data "logo.png:." --add-data "invoice_number.json:." --icon=icon.ico main.py
 
-- pyinstaller --onefile --add-data "logo.png:." --add-data "invoice_number.json:." --icon "assets/icon.ico" main.py
+-  pyinstaller --add-data="logo.png:." --add-data="invoice_number.json:." main.py
+
 
 
 
